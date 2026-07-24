@@ -1,49 +1,78 @@
-# Covoit'CP V2
+# Covoit'CP V3 — Option A
 
-Version entièrement reprise pour un nouveau projet Supabase dédié.
+Architecture complète :
 
-## Fonctionnement
+- Supabase Auth ;
+- validation manuelle des comptes ;
+- droits SQL explicites ;
+- Row Level Security ;
+- fonctions RPC sécurisées ;
+- groupes de covoiturage ;
+- trajets aller-retour ;
+- comptes entre collègues ;
+- administration des inscriptions.
 
-- Inscription par e-mail et mot de passe.
-- Pas de message de confirmation.
-- Les nouveaux comptes passent en `pending`.
-- L'administrateur valide ou refuse les comptes depuis le site.
-- Groupes de covoiturage avec code d'invitation.
-- Trajets aller-retour.
-- Conducteur et passagers.
-- Comptes séparés entre chaque paire de collègues.
-- RLS activé.
+## Étape 1 — Configuration de Supabase
 
-## Installation Supabase
+Dans le nouveau projet :
 
-1. Créer le nouveau projet Supabase.
-2. Dans `Authentication > Providers > Email`, désactiver **Confirm email**.
-3. Ouvrir `SQL Editor`.
-4. Exécuter tout le fichier `schema.sql`.
-5. Aller dans `Project Settings > API`.
-6. Copier :
-   - Project URL
-   - Publishable key
-7. Les coller dans `config.js`.
+1. Ouvre `Authentication`.
+2. Ouvre les réglages du fournisseur `Email`.
+3. Désactive la confirmation obligatoire de l'adresse e-mail.
+4. Conserve l'inscription par e-mail et mot de passe activée.
 
-## Premier administrateur
+## Étape 2 — Recréer la base Covoit'CP
 
-1. Inscris-toi normalement depuis le site.
-2. Dans Supabase > SQL Editor, exécute :
+Dans `SQL Editor` :
+
+1. Ouvre le fichier `schema.sql`.
+2. Copie tout son contenu.
+3. Exécute-le en une seule fois.
+
+Le script supprime uniquement les anciennes tables et fonctions Covoit'CP du schéma `public`.
+Il ne supprime pas les utilisateurs de `Authentication > Users`.
+
+Il recrée aussi les profils des utilisateurs déjà inscrits.
+
+## Étape 3 — Configuration du site
+
+Dans `config.js`, renseigne :
+
+```javascript
+export const SUPABASE_URL = "https://xxxxxxxx.supabase.co";
+export const SUPABASE_PUBLIC_KEY = "sb_publishable_xxxxxxxxx";
+```
+
+Utilise uniquement la clé publique `publishable`.
+Ne mets jamais une clé `secret` ou `service_role` dans GitHub.
+
+## Étape 4 — Créer le premier administrateur
+
+Inscris-toi depuis le site.
+
+Puis exécute dans le SQL Editor :
 
 ```sql
 update public.profiles
 set status = 'approved',
-    is_admin = true
-where email = 'TON_ADRESSE_EMAIL';
+    is_admin = true,
+    updated_at = now()
+where lower(email) = lower('TON_ADRESSE_EMAIL');
 ```
 
-3. Déconnecte-toi puis reconnecte-toi.
-4. Le menu **Administration** apparaîtra.
+Vérifie ensuite :
 
-## GitHub Pages
+```sql
+select id, full_name, email, status, is_admin
+from public.profiles
+order by created_at desc;
+```
 
-Place tous les fichiers à la racine du dépôt GitHub :
+Déconnecte-toi puis reconnecte-toi sur le site.
+
+## Étape 5 — GitHub Pages
+
+Dépose à la racine du dépôt :
 
 - `index.html`
 - `style.css`
@@ -52,10 +81,8 @@ Place tous les fichiers à la racine du dépôt GitHub :
 - `schema.sql`
 - `README.md`
 
-Puis active :
+Puis :
 
 `Settings > Pages > Deploy from a branch > main > /(root)`
 
-L'adresse sera normalement :
-
-`https://serialv2.github.io/Covoiturage/`
+Recharge ensuite le site avec `Ctrl + F5`.
