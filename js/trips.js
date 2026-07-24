@@ -145,3 +145,32 @@ export async function removeTrip(tripId, refreshCallback) {
   toast("Trajet supprimé.");
   await refreshCallback();
 }
+
+
+export async function joinTrip(tripId, refreshCallback) {
+  const { error } = await supabase.rpc("join_carpool_trip", {
+    p_trip_id: tripId
+  });
+
+  if (error) {
+    toast(error.message, "error");
+    return;
+  }
+
+  toast("Tu as rejoint ce covoiturage.");
+  await refreshCallback();
+}
+
+export async function leaveTrip(tripId, refreshCallback) {
+  const { error } = await supabase.rpc("leave_carpool_trip", {
+    p_trip_id: tripId
+  });
+
+  if (error) {
+    toast(error.message, "error");
+    return;
+  }
+
+  toast("Tu as quitté ce covoiturage.");
+  await refreshCallback();
+}

@@ -358,3 +358,77 @@ legend small{color:var(--muted);font-weight:600}
   .calendar-day{min-height:68px}
   .stat small{font-size:9px}
 }
+
+
+/* V7 — Choix du groupe et rejoindre un trajet */
+.group-choice{max-width:900px;margin:0 auto}
+.group-choice-header{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px
+}
+.group-choice-header h2{margin:3px 0 5px;font-size:26px}
+.group-choice-header p{margin:0;color:var(--muted)}
+.group-list{display:grid;gap:12px}
+.group-choice-card{
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:15px;
+  background:white;border:1px solid var(--border);border-radius:17px;padding:17px;
+  box-shadow:var(--shadow)
+}
+.group-choice-icon{
+  width:50px;height:50px;display:grid;place-items:center;border-radius:15px;
+  background:var(--primary-soft);font-size:24px
+}
+.group-choice-copy h3{margin:0 0 4px}
+.group-choice-copy p{margin:0;color:var(--muted)}
+.group-choice-copy small{display:block;margin-top:6px;color:var(--primary);font-weight:800}
+.admin-create-group{margin-top:20px}
+.calendar-summary-badge{
+  background:#edf2f7;color:var(--muted);padding:9px 12px;border-radius:10px;
+  font-size:12px;font-weight:850
+}
+.calendar-driver-count{
+  min-height:42px;display:grid;place-items:center;align-content:center;
+  border-radius:10px;background:#f5f7fa;color:var(--muted)
+}
+.calendar-driver-count.visible{background:var(--primary-soft);color:var(--primary)}
+.calendar-driver-count strong{font-size:20px;line-height:1}
+.calendar-driver-count span{font-size:9px;font-weight:850;margin-top:3px}
+.calendar-day.user-involved{background:#f0fbf4}
+.calendar-joined-mark{
+  margin-top:5px;font-size:9px;color:var(--ok);font-weight:900;text-align:center
+}
+.driver-choice-card{
+  border:1px solid var(--border);border-radius:15px;padding:15px;display:grid;gap:13px
+}
+.driver-choice-head{
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px
+}
+.driver-avatar{
+  width:44px;height:44px;border-radius:50%;display:grid;place-items:center;
+  background:var(--primary-soft);color:var(--primary);font-weight:900
+}
+.driver-choice-copy h3{margin:0;font-size:16px}
+.driver-choice-copy p{margin:3px 0 0;color:var(--muted);font-size:12px}
+.passenger-count{text-align:center}
+.passenger-count strong{display:block;font-size:21px;color:var(--primary);line-height:1}
+.passenger-count span{font-size:9px;color:var(--muted);font-weight:800}
+.driver-choice-details{
+  display:grid;gap:4px;padding:10px;background:#f7f9fc;border-radius:10px;
+  color:var(--muted);font-size:12px
+}
+.driver-choice-action{display:flex;justify-content:flex-end}
+.trip-status{padding:8px 11px;border-radius:10px;font-size:12px;font-weight:900}
+.driver-status{background:#e8f6ec;color:var(--ok)}
+
+@media(max-width:760px){
+  .group-choice-header{display:grid}
+  .group-choice-card{grid-template-columns:auto 1fr;padding:14px}
+  .group-choice-card .btn{grid-column:1/-1;width:100%}
+  .group-choice-icon{width:44px;height:44px}
+  .group-choice-copy h3{font-size:15px}
+  .calendar-driver-count{min-height:35px}
+  .calendar-driver-count strong{font-size:16px}
+  .calendar-driver-count span{font-size:8px}
+  .calendar-joined-mark{font-size:0}
+  .calendar-joined-mark::after{content:"✓";font-size:11px}
+  .driver-choice-action .btn{width:100%}
+}

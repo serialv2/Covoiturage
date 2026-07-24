@@ -3,7 +3,7 @@ import { $, $$, initials } from "./utils.js";
 import { renderUpcomingTrips } from "./trips.js";
 import { renderCalendar } from "./calendar.js";
 import { renderAccounts } from "./accounts.js";
-import { renderMembers } from "./groups.js";
+import { renderMembers, renderAvailableGroups } from "./groups.js";
 import { fillTripForm } from "./trips.js";
 
 export function showPage(page) {
@@ -45,8 +45,10 @@ export function renderApplication() {
   $("#newTripBtn").disabled = !hasGroup;
 
   if (!hasGroup) {
-    $("#headerTitle").textContent = "Covoit'CP";
-    $("#headerSubtitle").textContent = "Crée ou rejoins un groupe";
+    $("#headerTitle").textContent = "Choisir un groupe";
+    $("#headerSubtitle").textContent = "Sélectionne ton trajet habituel";
+    $("#createGroupForm").hidden = !state.profile.is_admin;
+    renderAvailableGroups();
     return;
   }
 

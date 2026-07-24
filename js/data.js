@@ -12,13 +12,28 @@ export async function getMyProfile() {
   return data;
 }
 
+export async function loadAvailableGroups() {
+  const { data, error } = await supabase.rpc("list_available_carpool_groups");
+
+  if (error) throw error;
+  state.availableGroups = data || [];
+}
+
 export async function loadCurrentGroup() {
+  const selectedGroupId = localStorage.getItem("covoitcp_active_group");
+
+  if (!selectedGroupId) {
+    state.group = null;
+    state.members = [];
+    state.trips = [];
+    return;
+  }
+
   const { data, error } = await supabase
     .from("group_members")
     .select("group_id, groups(*)")
     .eq("user_id", state.session.user.id)
-    .order("joined_at", { ascending: false })
-    .limit(1)
+    .eq("group_id", selectedGroupId)
     .maybeSingle();
 
   if (error) throw error;
@@ -26,6 +41,7 @@ export async function loadCurrentGroup() {
   state.group = data?.groups || null;
 
   if (!state.group) {
+    localStorage.removeItem("covoitcp_active_group");
     state.members = [];
     state.trips = [];
     return;

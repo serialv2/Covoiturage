@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0d2036">
   <title>Covoit'CP</title>
-  <link rel="stylesheet" href="css/style.css?v=6.0.0">
+  <link rel="stylesheet" href="css/style.css?v=7.0.0">
 </head>
 <body>
   <div id="toast" class="toast" hidden></div>
@@ -92,29 +92,28 @@
       </header>
 
       <section id="noGroupView" class="content">
-        <div class="empty">
-          <div class="big-icon">🛣️</div>
-          <h2>Tu n'appartiens à aucun groupe</h2>
-          <p>Crée un groupe ou rejoins-en un avec un code d'invitation.</p>
-          <div class="grid-2">
-            <form id="createGroupForm" class="card stack">
-              <h3>Créer un groupe</h3>
-              <label>Nom
-                <input id="groupName" value="Valenciennes → CP Maubeuge" required>
-              </label>
-              <label>Point de rendez-vous
-                <input id="meetingPoint" value="Aire de covoiturage de Saultain" required>
-              </label>
-              <button class="btn primary">Créer le groupe</button>
-            </form>
-            <form id="joinGroupForm" class="card stack">
-              <h3>Rejoindre un groupe</h3>
-              <label>Code d'invitation
-                <input id="inviteCode" maxlength="12" required placeholder="Ex. A1B2C3D4">
-              </label>
-              <button class="btn secondary">Rejoindre</button>
-            </form>
+        <div class="group-choice">
+          <div class="group-choice-header">
+            <div>
+              <p class="eyebrow">CHOISIR MON GROUPE</p>
+              <h2>Quel covoiturage utilises-tu ?</h2>
+              <p>Sélectionne simplement ton point de départ habituel.</p>
+            </div>
+            <button id="refreshGroupsBtn" class="btn secondary" type="button">Actualiser</button>
           </div>
+
+          <div id="availableGroupsList" class="group-list"></div>
+
+          <form id="createGroupForm" class="card stack admin-create-group" hidden>
+            <h3>Créer un nouveau groupe</h3>
+            <label>Nom du groupe
+              <input id="groupName" placeholder="Ex. Jeumont → CP Maubeuge" required>
+            </label>
+            <label>Point de rendez-vous
+              <input id="meetingPoint" placeholder="Ex. Parking de covoiturage de Jeumont" required>
+            </label>
+            <button class="btn primary">Créer le groupe</button>
+          </form>
         </div>
       </section>
 
@@ -142,14 +141,11 @@
           <div class="calendar-toolbar">
             <div>
               <h3>Calendrier des covoiturages</h3>
-              <p>Clique sur une journée pour voir les trajets qui te concernent.</p>
+              <p>Chaque journée indique le nombre de conducteurs disponibles dans ton groupe.</p>
             </div>
 
             <div class="calendar-actions">
-              <div class="segmented">
-                <button id="myTripsFilter" class="segment active" type="button">Mes covoiturages</button>
-                <button id="groupTripsFilter" class="segment" type="button">Tout le groupe</button>
-              </div>
+              <div class="calendar-summary-badge">Tous les trajets du groupe</div>
               <button class="btn primary" data-open-trip>＋ Ajouter</button>
             </div>
           </div>
@@ -191,7 +187,10 @@
       <section id="groupPage" class="page content" hidden>
         <div class="grid-2">
           <article class="card">
-            <h3>Informations du groupe</h3>
+            <div class="card-head">
+              <h3>Informations du groupe</h3>
+              <button id="changeGroupBtn" class="btn secondary" type="button">Changer</button>
+            </div>
             <dl class="details">
               <div><dt>Nom</dt><dd id="groupInfoName">—</dd></div>
               <div><dt>Rendez-vous</dt><dd id="groupInfoMeeting">—</dd></div>
@@ -256,6 +255,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="js/main.js?v=6.0.0"></script>
+  <script type="module" src="js/main.js?v=7.0.0"></script>
 </body>
 </html>

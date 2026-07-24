@@ -15,15 +15,13 @@ export async function createGroup(event, refreshCallback) {
     return;
   }
 
-  toast(`Groupe créé. Code : ${data}`);
-  await refreshCallback();
+  toast("Groupe créé.");
+  await selectGroup(data.group_id || data, refreshCallback);
 }
 
-export async function joinGroup(event, refreshCallback) {
-  event.preventDefault();
-
-  const { error } = await supabase.rpc("join_carpool_group", {
-    p_invite_code: $("#inviteCode").value.trim().toUpperCase()
+export async function selectGroup(groupId, refreshCallback) {
+  const { error } = await supabase.rpc("join_carpool_group_by_id", {
+    p_group_id: groupId
   });
 
   if (error) {
@@ -31,8 +29,46 @@ export async function joinGroup(event, refreshCallback) {
     return;
   }
 
-  toast("Groupe rejoint.");
+  localStorage.setItem("covoitcp_active_group", groupId);
+  toast("Groupe sélectionné.");
   await refreshCallback();
+}
+
+export function leaveActiveGroupSelection(refreshCallback) {
+  localStorage.removeItem("covoitcp_active_group");
+  state.group = null;
+  state.members = [];
+  state.trips = [];
+  refreshCallback();
+}
+
+export function renderAvailableGroups() {
+  const container = $("#availableGroupsList");
+
+  if (!state.availableGroups.length) {
+    container.innerHTML = `
+      <div class="card empty-list">
+        Aucun groupe n'est encore disponible.
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = state.availableGroups.map(group => `
+    <article class="group-choice-card">
+      <div class="group-choice-icon">🚗</div>
+      <div class="group-choice-copy">
+        <h3>${escapeHtml(group.name)}</h3>
+        <p>${escapeHtml(group.meeting_point)}</p>
+        <small>${group.member_count} membre${group.member_count > 1 ? "s" : ""}</small>
+      </div>
+      <button
+        type="button"
+        class="btn primary"
+        data-select-group="${group.id}">
+        ${group.is_member ? "Ouvrir" : "Rejoindre"}
+      </button>
+    </article>
+  `).join("");
 }
 
 export function renderMembers() {

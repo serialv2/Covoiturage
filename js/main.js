@@ -1,28 +1,32 @@
 import { supabase } from "./supabase.js";
 import { state } from "./state.js";
 import { $, $$, toast } from "./utils.js";
-import { getMyProfile, loadCurrentGroup } from "./data.js";
+import { getMyProfile, loadCurrentGroup, loadAvailableGroups } from "./data.js";
 import { renderApplication, showPage } from "./ui.js";
 import { register, login, logout } from "./auth.js";
-import { createGroup, joinGroup } from "./groups.js";
+import { createGroup, selectGroup, leaveActiveGroupSelection } from "./groups.js";
 import {
   openTripDialog,
   saveTrip,
   removeTrip,
-  updatePassengerChoices
+  updatePassengerChoices,
+  joinTrip,
+  leaveTrip
 } from "./trips.js";
 import {
   renderCalendar,
   openDayDetails,
   changeCalendarMonth,
   showToday,
-  setCalendarFilter,
   addTripFromSelectedDay
 } from "./calendar.js";
 import { loadAdmin, setProfileStatus } from "./admin.js";
 
 async function refreshApplication() {
-  await loadCurrentGroup();
+  await Promise.all([
+    loadAvailableGroups(),
+    loadCurrentGroup()
+  ]);
   renderApplication();
 }
 
@@ -42,7 +46,10 @@ async function applySession(session) {
     state.profile = await getMyProfile();
 
     if (state.profile.status === "approved") {
-      await loadCurrentGroup();
+      await Promise.all([
+        loadAvailableGroups(),
+        loadCurrentGroup()
+      ]);
     }
 
     renderApplication();
@@ -71,11 +78,7 @@ function bindEvents() {
     createGroup(event, refreshApplication)
   );
 
-  $("#joinGroupForm").addEventListener("submit", event =>
-    joinGroup(event, refreshApplication)
-  );
-
-  $("#tripForm").addEventListener("submit", event =>
+$("#tripForm").addEventListener("submit", event =>
     saveTrip(event, refreshApplication)
   );
 
@@ -134,13 +137,6 @@ function bindEvents() {
 
   $("#todayBtn").addEventListener("click", showToday);
 
-  $("#myTripsFilter").addEventListener("click", () => {
-    setCalendarFilter("mine");
-  });
-
-  $("#groupTripsFilter").addEventListener("click", () => {
-    setCalendarFilter("group");
-  });
 
   $("#closeDayDetailsBtn").addEventListener("click", () => {
     $("#dayDetailsDialog").close();
@@ -152,7 +148,33 @@ function bindEvents() {
 
   $("#addTripFromDayBtn").addEventListener("click", addTripFromSelectedDay);
 
+  $("#refreshGroupsBtn").addEventListener("click", refreshApplication);
+
+  $("#changeGroupBtn").addEventListener("click", () => {
+    leaveActiveGroupSelection(refreshApplication);
+  });
+
   document.addEventListener("click", async event => {
+    const selectGroupButton = event.target.closest("[data-select-group]");
+
+    if (selectGroupButton) {
+      await selectGroup(selectGroupButton.dataset.selectGroup, refreshApplication);
+    }
+
+    const joinTripButton = event.target.closest("[data-join-trip]");
+
+    if (joinTripButton) {
+      $("#dayDetailsDialog").close();
+      await joinTrip(joinTripButton.dataset.joinTrip, refreshApplication);
+    }
+
+    const leaveTripButton = event.target.closest("[data-leave-trip]");
+
+    if (leaveTripButton) {
+      $("#dayDetailsDialog").close();
+      await leaveTrip(leaveTripButton.dataset.leaveTrip, refreshApplication);
+    }
+
     const calendarDay = event.target.closest("[data-calendar-date]");
 
     if (calendarDay && !calendarDay.disabled) {
