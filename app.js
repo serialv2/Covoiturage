@@ -3,476 +3,141 @@ import { SUPABASE_URL, SUPABASE_PUBLIC_KEY } from "./config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
 
-const state = {
-  session: null,
-  profile: null,
-  group: null,
-  members: [],
-  trips: []
-};
+const state = { session:null, profile:null, group:null, members:[], trips:[] };
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
 
-const $ = (selector) => document.querySelector(selector);
-const $$ = (selector) => [...document.querySelectorAll(selector)];
-
-const authView = $("#authView");
-const appView = $("#appView");
-const noGroupPanel = $("#noGroupPanel");
-const groupContent = $("#groupContent");
-const tripModal = $("#tripModal");
-
-function showToast(message, type = "success") {
-  const toast = $("#toast");
-  toast.textContent = message;
-  toast.className = `toast ${type === "error" ? "error" : ""}`;
-  toast.hidden = false;
-  clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => (toast.hidden = true), 3500);
+function toast(message,type="ok"){
+  const el=$("#toast"); el.textContent=message; el.className=`toast ${type==="error"?"error":""}`; el.hidden=false;
+  clearTimeout(toast.timer); toast.timer=setTimeout(()=>el.hidden=true,3500);
 }
-
-function initials(name = "?") {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(part => part[0]?.toUpperCase())
-    .join("") || "?";
+function esc(v=""){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function initials(name="?"){return name.trim().split(/\s+/).slice(0,2).map(x=>x[0]?.toUpperCase()).join("")||"?"}
+function formatDate(v){return new Intl.DateTimeFormat("fr-FR",{weekday:"short",day:"2-digit",month:"short"}).format(new Date(`${v}T12:00:00`))}
+function setPage(page){
+  $$(".page").forEach(x=>x.hidden=true); $(`#${page}Page`).hidden=false;
+  $$(".nav").forEach(x=>x.classList.toggle("active",x.dataset.page===page));
 }
-
-function formatDate(dateString) {
-  return new Intl.DateTimeFormat("fr-FR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short"
-  }).format(new Date(`${dateString}T12:00:00`));
+async function getMyProfile(){
+  const {data,error}=await supabase.from("profiles").select("*").eq("id",state.session.user.id).single();
+  if(error) throw error; return data;
 }
-
-function escapeHtml(value = "") {
-  return String(value).replace(/[&<>"']/g, char => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
-  })[char]);
-}
-
-async function ensureProfile(user) {
-  const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Collègue";
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .upsert({ id: user.id, full_name: fullName }, { onConflict: "id" })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
-async function loadCurrentGroup() {
-  const { data: membership, error } = await supabase
-    .from("group_members")
-    .select("group_id, groups(*)")
-    .eq("user_id", state.session.user.id)
-    .order("joined_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw error;
-  state.group = membership?.groups || null;
-
-  if (!state.group) {
-    state.members = [];
-    state.trips = [];
-    render();
-    return;
-  }
-
-  const [{ data: members, error: membersError }, { data: trips, error: tripsError }] = await Promise.all([
-    supabase
-      .from("group_members")
-      .select("user_id, role, joined_at, profiles(id, full_name)")
-      .eq("group_id", state.group.id)
-      .order("joined_at"),
-    supabase
-      .from("trips")
-      .select(`
-        id, group_id, trip_date, departure_time, note, driver_id, created_by, created_at,
-        driver:profiles!trips_driver_id_fkey(id, full_name),
-        trip_passengers(
-          passenger_id,
-          passenger:profiles!trip_passengers_passenger_id_fkey(id, full_name)
-        )
-      `)
-      .eq("group_id", state.group.id)
-      .order("trip_date", { ascending: false })
-      .order("departure_time", { ascending: false })
+async function loadGroup(){
+  const {data,error}=await supabase.from("group_members")
+    .select("group_id, groups(*)").eq("user_id",state.session.user.id)
+    .order("joined_at",{ascending:false}).limit(1).maybeSingle();
+  if(error) throw error;
+  state.group=data?.groups||null;
+  if(!state.group){state.members=[];state.trips=[];render();return}
+  const [{data:members,error:me},{data:trips,error:te}]=await Promise.all([
+    supabase.from("group_members").select("user_id,role,joined_at,profiles(id,full_name,status)").eq("group_id",state.group.id).order("joined_at"),
+    supabase.from("trips").select(`id,group_id,trip_date,departure_time,note,driver_id,created_by,created_at,
+      driver:profiles!trips_driver_id_fkey(id,full_name),
+      trip_passengers(passenger_id,passenger:profiles!trip_passengers_passenger_id_fkey(id,full_name))`)
+      .eq("group_id",state.group.id).order("trip_date",{ascending:false}).order("departure_time",{ascending:false})
   ]);
-
-  if (membersError) throw membersError;
-  if (tripsError) throw tripsError;
-
-  state.members = members || [];
-  state.trips = trips || [];
-  render();
+  if(me) throw me;if(te) throw te;state.members=members||[];state.trips=trips||[];render();
 }
-
-function render() {
-  const loggedIn = Boolean(state.session);
-  authView.hidden = loggedIn;
-  appView.hidden = !loggedIn;
-  if (!loggedIn) return;
-
-  $("#sidebarName").textContent = state.profile?.full_name || "Utilisateur";
-  $("#sidebarAvatar").textContent = initials(state.profile?.full_name);
-
-  const hasGroup = Boolean(state.group);
-  noGroupPanel.hidden = hasGroup;
-  groupContent.hidden = !hasGroup;
-  $("#openTripModalBtn").disabled = !hasGroup;
-
-  if (!hasGroup) {
-    $("#groupTitle").textContent = "Votre groupe de covoiturage";
-    $("#groupSubtitle").textContent = "Créez ou rejoignez un groupe";
-    return;
-  }
-
-  $("#groupTitle").textContent = state.group.name;
-  $("#groupSubtitle").textContent = `Rendez-vous : ${state.group.meeting_point}`;
-  $("#groupInfoName").textContent = state.group.name;
-  $("#groupInfoMeeting").textContent = state.group.meeting_point;
-  $("#groupInfoCode").textContent = state.group.invite_code;
-
-  renderStats();
-  renderTrips();
-  renderAccounts();
-  renderMembers();
-  fillTripForm();
+function render(){
+  const logged=!!state.session, approved=state.profile?.status==="approved";
+  $("#authView").hidden=logged; $("#pendingView").hidden=!logged||approved; $("#appView").hidden=!logged||!approved;
+  if(!logged||!approved)return;
+  $("#userName").textContent=state.profile.full_name;$("#userAvatar").textContent=initials(state.profile.full_name);
+  $("#userRole").textContent=state.profile.is_admin?"Administrateur":"Membre";$("#adminNav").hidden=!state.profile.is_admin;
+  const has=!!state.group;$("#noGroupView").hidden=has;$$(".page").forEach(x=>x.hidden=true);$("#newTripBtn").disabled=!has;
+  if(!has){$("#headerTitle").textContent="Covoit'CP";$("#headerSubtitle").textContent="Crée ou rejoins un groupe";return}
+  $("#dashboardPage").hidden=false;$("#headerTitle").textContent=state.group.name;$("#headerSubtitle").textContent=`Rendez-vous : ${state.group.meeting_point}`;
+  $("#groupInfoName").textContent=state.group.name;$("#groupInfoMeeting").textContent=state.group.meeting_point;$("#groupInfoCode").textContent=state.group.invite_code;
+  renderStats();renderTrips();renderAccounts();renderMembers();fillTripForm();
 }
-
-function myRelationships() {
-  const me = state.session.user.id;
-  const result = new Map();
-
-  for (const member of state.members) {
-    if (member.user_id !== me) {
-      result.set(member.user_id, {
-        id: member.user_id,
-        name: member.profiles?.full_name || "Collègue",
-        iDrove: 0,
-        droveMe: 0
-      });
-    }
-  }
-
-  for (const trip of state.trips) {
-    const passengerIds = (trip.trip_passengers || []).map(p => p.passenger_id);
-
-    if (trip.driver_id === me) {
-      for (const passengerId of passengerIds) {
-        if (result.has(passengerId)) result.get(passengerId).iDrove++;
-      }
-    }
-
-    if (passengerIds.includes(me) && result.has(trip.driver_id)) {
-      result.get(trip.driver_id).droveMe++;
-    }
-  }
-
-  return [...result.values()].map(row => ({
-    ...row,
-    balance: row.iDrove - row.droveMe
-  }));
-}
-
-function renderStats() {
-  const me = state.session.user.id;
-  const driven = state.trips.filter(t => t.driver_id === me).length;
-  const passenger = state.trips.filter(t =>
-    (t.trip_passengers || []).some(p => p.passenger_id === me)
-  ).length;
-
-  $("#drivenCount").textContent = driven;
-  $("#passengerCount").textContent = passenger;
-  $("#balanceCount").textContent = `${driven - passenger >= 0 ? "+" : ""}${driven - passenger}`;
-  $("#memberCount").textContent = state.members.length;
-}
-
-function tripHtml(trip, allowDelete = false) {
-  const passengers = (trip.trip_passengers || [])
-    .map(p => p.passenger?.full_name || "Collègue")
-    .join(", ") || "Aucun passager";
-
-  const canDelete = allowDelete &&
-    (trip.created_by === state.session.user.id || trip.driver_id === state.session.user.id);
-
-  return `
-    <div class="trip-item">
-      <div class="trip-date">
-        <strong>${escapeHtml(formatDate(trip.trip_date))}</strong>
-        <span>${escapeHtml(trip.departure_time?.slice(0, 5) || "")}</span>
-      </div>
-      <div class="trip-main">
-        <strong>Conducteur : ${escapeHtml(trip.driver?.full_name || "Collègue")}</strong>
-        <small>Passagers : ${escapeHtml(passengers)}</small>
-        ${trip.note ? `<small>${escapeHtml(trip.note)}</small>` : ""}
-      </div>
-      <div class="trip-actions">
-        <span class="badge">Aller-retour</span>
-        ${canDelete ? `<button class="delete-btn" data-delete-trip="${trip.id}">Supprimer</button>` : ""}
-      </div>
-    </div>`;
-}
-
-function renderTrips() {
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
-  const upcoming = state.trips
-    .filter(t => new Date(`${t.trip_date}T12:00:00`) >= today)
-    .sort((a,b) => a.trip_date.localeCompare(b.trip_date) || a.departure_time.localeCompare(b.departure_time));
-
-  $("#upcomingTrips").innerHTML = upcoming.length
-    ? upcoming.slice(0, 4).map(t => tripHtml(t)).join("")
-    : `<div class="list-empty">Aucun trajet à venir.</div>`;
-
-  $("#allTrips").innerHTML = state.trips.length
-    ? state.trips.map(t => tripHtml(t, true)).join("")
-    : `<div class="list-empty">Aucun trajet enregistré.</div>`;
-}
-
-function accountRowHtml(row) {
-  let label = "Équilibré";
-  let className = "balance-even";
-
-  if (row.balance > 0) {
-    label = `Vous avez ${row.balance} trajet${row.balance > 1 ? "s" : ""} d’avance`;
-    className = "balance-positive";
-  } else if (row.balance < 0) {
-    const debt = Math.abs(row.balance);
-    label = `${row.name} a ${debt} trajet${debt > 1 ? "s" : ""} d’avance`;
-    className = "balance-negative";
-  }
-
-  return `
-    <tr>
-      <td><div class="person-cell"><span class="mini-avatar">${escapeHtml(initials(row.name))}</span>${escapeHtml(row.name)}</div></td>
-      <td>${row.iDrove}</td>
-      <td>${row.droveMe}</td>
-      <td class="${className}">${escapeHtml(label)}</td>
-    </tr>`;
-}
-
-function renderAccounts() {
-  const rows = myRelationships();
-  const html = rows.length
-    ? rows.map(accountRowHtml).join("")
-    : `<tr><td colspan="4" class="list-empty">Ajoutez des collègues puis enregistrez des trajets.</td></tr>`;
-
-  $("#accountsTableBody").innerHTML = html;
-  $("#accountPreview").innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Collègue</th><th>Je l’ai conduit</th><th>Il/elle m’a conduit</th><th>Situation</th></tr></thead>
-        <tbody>${rows.slice(0, 5).map(accountRowHtml).join("") || `<tr><td colspan="4" class="list-empty">Pas encore de comptes.</td></tr>`}</tbody>
-      </table>
-    </div>`;
-}
-
-function renderMembers() {
-  $("#membersList").innerHTML = state.members.map(member => {
-    const name = member.profiles?.full_name || "Collègue";
-    return `
-      <div class="member-row">
-        <span class="mini-avatar">${escapeHtml(initials(name))}</span>
-        <div><strong>${escapeHtml(name)}</strong><small>${member.role === "admin" ? "Administrateur" : "Membre"}</small></div>
-      </div>`;
-  }).join("");
-}
-
-function fillTripForm() {
-  const options = state.members.map(member => {
-    const name = member.profiles?.full_name || "Collègue";
-    return `<option value="${member.user_id}">${escapeHtml(name)}</option>`;
-  }).join("");
-
-  $("#driverSelect").innerHTML = options;
-  $("#driverSelect").value = state.session.user.id;
-
-  updatePassengerCheckboxes();
-}
-
-function updatePassengerCheckboxes() {
-  const driverId = $("#driverSelect").value;
-  $("#passengerCheckboxes").innerHTML = state.members
-    .filter(member => member.user_id !== driverId)
-    .map(member => {
-      const name = member.profiles?.full_name || "Collègue";
-      return `
-        <label class="check-label">
-          <input type="checkbox" name="passengers" value="${member.user_id}" />
-          ${escapeHtml(name)}
-        </label>`;
-    }).join("") || `<p class="list-empty">Aucun autre membre dans ce groupe.</p>`;
-}
-
-function showPage(page) {
-  $$(".page").forEach(el => (el.hidden = true));
-  $(`#${page}Page`).hidden = false;
-  $$(".nav-item").forEach(button => button.classList.toggle("active", button.dataset.page === page));
-}
-
-async function handleRegister(event) {
-  event.preventDefault();
-  const fullName = $("#registerName").value.trim();
-  const email = $("#registerEmail").value.trim();
-  const password = $("#registerPassword").value;
-
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { full_name: fullName } }
+function relations(){
+  const me=state.session.user.id,map=new Map();
+  state.members.filter(m=>m.user_id!==me).forEach(m=>map.set(m.user_id,{id:m.user_id,name:m.profiles?.full_name||"Collègue",iDrove:0,droveMe:0}));
+  state.trips.forEach(t=>{
+    const p=(t.trip_passengers||[]).map(x=>x.passenger_id);
+    if(t.driver_id===me)p.forEach(id=>map.has(id)&&map.get(id).iDrove++);
+    if(p.includes(me)&&map.has(t.driver_id))map.get(t.driver_id).droveMe++;
   });
-
-  if (error) return showToast(error.message, "error");
-
-  if (!data.session) {
-    showToast("Compte créé. Vérifiez votre e-mail pour confirmer l’inscription.");
-  } else {
-    showToast("Compte créé.");
-  }
+  return [...map.values()].map(x=>({...x,balance:x.iDrove-x.droveMe}));
 }
-
-async function handleLogin(event) {
-  event.preventDefault();
-  const { error } = await supabase.auth.signInWithPassword({
-    email: $("#loginEmail").value.trim(),
-    password: $("#loginPassword").value
-  });
-
-  if (error) showToast(error.message, "error");
+function renderStats(){
+  const me=state.session.user.id, driven=state.trips.filter(t=>t.driver_id===me).length,
+    passenger=state.trips.filter(t=>(t.trip_passengers||[]).some(p=>p.passenger_id===me)).length;
+  $("#statDriven").textContent=driven;$("#statPassenger").textContent=passenger;$("#statBalance").textContent=`${driven-passenger>=0?"+":""}${driven-passenger}`;$("#statMembers").textContent=state.members.length;
 }
-
-async function handleCreateGroup(event) {
-  event.preventDefault();
-  const { data, error } = await supabase.rpc("create_carpool_group", {
-    p_name: $("#groupName").value.trim(),
-    p_meeting_point: $("#meetingPoint").value.trim()
-  });
-
-  if (error) return showToast(error.message, "error");
-  showToast(`Groupe créé. Code : ${data}`);
-  await loadCurrentGroup();
+function tripHtml(t,del=false){
+  const passengers=(t.trip_passengers||[]).map(p=>p.passenger?.full_name||"Collègue").join(", ")||"Aucun";
+  const can=del&&(t.created_by===state.session.user.id||t.driver_id===state.session.user.id||state.profile.is_admin);
+  return `<div class="trip"><div class="trip-date"><strong>${esc(formatDate(t.trip_date))}</strong><span>${esc(t.departure_time.slice(0,5))}</span></div>
+    <div class="trip-main"><strong>Conducteur : ${esc(t.driver?.full_name||"Collègue")}</strong><small>Passagers : ${esc(passengers)}</small>${t.note?`<small>${esc(t.note)}</small>`:""}</div>
+    <div class="trip-actions"><span class="badge">Aller-retour</span>${can?`<button class="danger-btn" data-delete="${t.id}">Supprimer</button>`:""}</div></div>`;
 }
-
-async function handleJoinGroup(event) {
-  event.preventDefault();
-  const { error } = await supabase.rpc("join_carpool_group", {
-    p_invite_code: $("#inviteCode").value.trim().toUpperCase()
-  });
-
-  if (error) return showToast(error.message, "error");
-  showToast("Vous avez rejoint le groupe.");
-  await loadCurrentGroup();
+function renderTrips(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const upcoming=state.trips.filter(t=>new Date(`${t.trip_date}T12:00:00`)>=today).sort((a,b)=>a.trip_date.localeCompare(b.trip_date)||a.departure_time.localeCompare(b.departure_time));
+  $("#upcomingTrips").innerHTML=upcoming.length?upcoming.slice(0,4).map(t=>tripHtml(t)).join(""):`<div class="empty-list">Aucun trajet à venir.</div>`;
+  $("#allTrips").innerHTML=state.trips.length?state.trips.map(t=>tripHtml(t,true)).join(""):`<div class="empty-list">Aucun trajet enregistré.</div>`;
 }
-
-async function handleCreateTrip(event) {
-  event.preventDefault();
-
-  const passengerIds = $$('input[name="passengers"]:checked').map(input => input.value);
-  if (!passengerIds.length) return showToast("Sélectionnez au moins un passager.", "error");
-
-  const { error } = await supabase.rpc("create_trip_with_passengers", {
-    p_group_id: state.group.id,
-    p_trip_date: $("#tripDate").value,
-    p_departure_time: $("#tripTime").value,
-    p_driver_id: $("#driverSelect").value,
-    p_passenger_ids: passengerIds,
-    p_note: $("#tripNote").value.trim() || null
-  });
-
-  if (error) return showToast(error.message, "error");
-
-  tripModal.close();
-  $("#tripForm").reset();
-  showToast("Trajet enregistré.");
-  await loadCurrentGroup();
+function accountRow(r){
+  let text="Équilibré",cl="even";if(r.balance>0){text=`Vous avez ${r.balance} trajet${r.balance>1?"s":""} d'avance`;cl="positive"}
+  if(r.balance<0){const n=Math.abs(r.balance);text=`${r.name} a ${n} trajet${n>1?"s":""} d'avance`;cl="negative"}
+  return `<tr><td><div class="person"><span class="mini-avatar">${esc(initials(r.name))}</span>${esc(r.name)}</div></td><td>${r.iDrove}</td><td>${r.droveMe}</td><td class="${cl}">${esc(text)}</td></tr>`;
 }
-
-async function deleteTrip(tripId) {
-  if (!confirm("Supprimer ce trajet ? Les comptes seront automatiquement recalculés.")) return;
-
-  const { error } = await supabase.from("trips").delete().eq("id", tripId);
-  if (error) return showToast(error.message, "error");
-
-  showToast("Trajet supprimé.");
-  await loadCurrentGroup();
+function renderAccounts(){
+  const rows=relations(),body=rows.length?rows.map(accountRow).join(""):`<tr><td colspan="4" class="empty-list">Pas encore de comptes.</td></tr>`;
+  $("#accountsBody").innerHTML=body;$("#accountPreview").innerHTML=`<div class="table-wrap"><table><thead><tr><th>Collègue</th><th>Je l'ai conduit</th><th>Il/elle m'a conduit</th><th>Situation</th></tr></thead><tbody>${rows.slice(0,5).map(accountRow).join("")||`<tr><td colspan="4" class="empty-list">Pas encore de comptes.</td></tr>`}</tbody></table></div>`;
 }
-
-function openTripModal() {
-  if (!state.group) return;
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  $("#tripDate").value = tomorrow.toISOString().slice(0, 10);
-  $("#tripTime").value = "05:45";
-  $("#driverSelect").value = state.session.user.id;
-  updatePassengerCheckboxes();
-  tripModal.showModal();
+function renderMembers(){
+  $("#membersList").innerHTML=state.members.map(m=>{const n=m.profiles?.full_name||"Collègue";return `<div class="member"><span class="mini-avatar">${esc(initials(n))}</span><div><strong>${esc(n)}</strong><small>${m.role==="admin"?"Responsable du groupe":"Membre"}</small></div></div>`}).join("");
 }
-
-function bindEvents() {
-  $$(".tab").forEach(tab => tab.addEventListener("click", () => {
-    $$(".tab").forEach(t => t.classList.toggle("active", t === tab));
-    $("#loginForm").hidden = tab.dataset.authTab !== "login";
-    $("#registerForm").hidden = tab.dataset.authTab !== "register";
-  }));
-
-  $("#loginForm").addEventListener("submit", handleLogin);
-  $("#registerForm").addEventListener("submit", handleRegister);
-  $("#createGroupForm").addEventListener("submit", handleCreateGroup);
-  $("#joinGroupForm").addEventListener("submit", handleJoinGroup);
-  $("#tripForm").addEventListener("submit", handleCreateTrip);
-  $("#driverSelect").addEventListener("change", updatePassengerCheckboxes);
-
-  $("#logoutBtn").addEventListener("click", () => supabase.auth.signOut());
-  $("#openTripModalBtn").addEventListener("click", openTripModal);
-  $$("[data-open-trip]").forEach(btn => btn.addEventListener("click", openTripModal));
-  $("#closeTripModalBtn").addEventListener("click", () => tripModal.close());
-  $("#cancelTripBtn").addEventListener("click", () => tripModal.close());
-
-  $$(".nav-item").forEach(btn => btn.addEventListener("click", () => showPage(btn.dataset.page)));
-  $$("[data-page-link]").forEach(btn => btn.addEventListener("click", () => showPage(btn.dataset.pageLink)));
-
-  document.addEventListener("click", event => {
-    const button = event.target.closest("[data-delete-trip]");
-    if (button) deleteTrip(button.dataset.deleteTrip);
-  });
+function fillTripForm(){
+  $("#driverSelect").innerHTML=state.members.map(m=>`<option value="${m.user_id}">${esc(m.profiles?.full_name||"Collègue")}</option>`).join("");
+  $("#driverSelect").value=state.session.user.id;updatePassengers();
 }
-
-async function bootstrap() {
-  bindEvents();
-
-  const { data: { session } } = await supabase.auth.getSession();
-  await applySession(session);
-
-  supabase.auth.onAuthStateChange(async (_event, newSession) => {
-    await applySession(newSession);
-  });
+function updatePassengers(){
+  const d=$("#driverSelect").value;$("#passengerChoices").innerHTML=state.members.filter(m=>m.user_id!==d).map(m=>`<label class="check"><input type="checkbox" name="passengers" value="${m.user_id}">${esc(m.profiles?.full_name||"Collègue")}</label>`).join("")||`<div class="empty-list">Aucun autre membre.</div>`;
 }
-
-async function applySession(session) {
-  state.session = session;
-
-  if (!session) {
-    state.profile = null;
-    state.group = null;
-    render();
-    return;
-  }
-
-  try {
-    state.profile = await ensureProfile(session.user);
-    await loadCurrentGroup();
-  } catch (error) {
-    console.error(error);
-    showToast(error.message || "Erreur de chargement.", "error");
-  }
+async function loadAdmin(){
+  if(!state.profile?.is_admin)return;
+  const {data,error}=await supabase.rpc("admin_list_profiles");if(error)return toast(error.message,"error");
+  const pending=(data||[]).filter(x=>x.status==="pending"),approved=(data||[]).filter(x=>x.status==="approved");
+  $("#pendingUsers").innerHTML=pending.length?pending.map(adminUserHtml).join(""):`<div class="empty-list">Aucune demande.</div>`;
+  $("#approvedUsers").innerHTML=approved.length?approved.map(x=>adminUserHtml(x,false)).join(""):`<div class="empty-list">Aucun compte validé.</div>`;
 }
-
-bootstrap();
+function adminUserHtml(u,actions=true){return `<div class="admin-user"><span class="mini-avatar">${esc(initials(u.full_name))}</span><div><strong>${esc(u.full_name)}</strong><small>${esc(u.email)}</small></div>${actions?`<div class="admin-actions"><button class="approve" data-approve="${u.id}">Valider</button><button class="reject" data-reject="${u.id}">Refuser</button></div>`:""}</div>`}
+async function register(e){
+  e.preventDefault();const full_name=$("#registerName").value.trim();
+  const {data,error}=await supabase.auth.signUp({email:$("#registerEmail").value.trim(),password:$("#registerPassword").value,options:{data:{full_name}}});
+  if(error)return toast(error.message,"error");
+  if(data.session)toast("Compte créé. Il doit maintenant être validé.");else toast("Compte créé.");
+}
+async function login(e){e.preventDefault();const {error}=await supabase.auth.signInWithPassword({email:$("#loginEmail").value.trim(),password:$("#loginPassword").value});if(error)toast(error.message,"error")}
+async function createGroup(e){e.preventDefault();const {data,error}=await supabase.rpc("create_carpool_group",{p_name:$("#groupName").value.trim(),p_meeting_point:$("#meetingPoint").value.trim()});if(error)return toast(error.message,"error");toast(`Groupe créé. Code : ${data}`);await loadGroup()}
+async function joinGroup(e){e.preventDefault();const {error}=await supabase.rpc("join_carpool_group",{p_invite_code:$("#inviteCode").value.trim().toUpperCase()});if(error)return toast(error.message,"error");toast("Groupe rejoint.");await loadGroup()}
+async function saveTrip(e){
+  e.preventDefault();const ids=$$('input[name="passengers"]:checked').map(x=>x.value);if(!ids.length)return toast("Choisis au moins un passager.","error");
+  const {error}=await supabase.rpc("create_trip_with_passengers",{p_group_id:state.group.id,p_trip_date:$("#tripDate").value,p_departure_time:$("#tripTime").value,p_driver_id:$("#driverSelect").value,p_passenger_ids:ids,p_note:$("#tripNote").value.trim()||null});
+  if(error)return toast(error.message,"error");$("#tripDialog").close();toast("Trajet enregistré.");await loadGroup();
+}
+async function removeTrip(id){if(!confirm("Supprimer ce trajet ?"))return;const {error}=await supabase.from("trips").delete().eq("id",id);if(error)return toast(error.message,"error");toast("Trajet supprimé.");await loadGroup()}
+async function setStatus(id,status){const {error}=await supabase.rpc("admin_set_profile_status",{p_user_id:id,p_status:status});if(error)return toast(error.message,"error");toast(status==="approved"?"Compte validé.":"Compte refusé.");await loadAdmin()}
+function openTrip(){const d=new Date();d.setDate(d.getDate()+1);$("#tripDate").value=d.toISOString().slice(0,10);$("#tripTime").value="05:45";$("#driverSelect").value=state.session.user.id;updatePassengers();$("#tripDialog").showModal()}
+function bind(){
+  $$(".tab").forEach(t=>t.onclick=()=>{$$(".tab").forEach(x=>x.classList.toggle("active",x===t));$("#loginForm").hidden=t.dataset.tab!=="login";$("#registerForm").hidden=t.dataset.tab!=="register"});
+  $("#loginForm").onsubmit=login;$("#registerForm").onsubmit=register;$("#createGroupForm").onsubmit=createGroup;$("#joinGroupForm").onsubmit=joinGroup;$("#tripForm").onsubmit=saveTrip;
+  $("#driverSelect").onchange=updatePassengers;$("#logoutBtn").onclick=()=>supabase.auth.signOut();$("#pendingLogoutBtn").onclick=()=>supabase.auth.signOut();
+  $("#newTripBtn").onclick=openTrip;$$("[data-open-trip]").forEach(x=>x.onclick=openTrip);$("#closeTripBtn").onclick=()=>$("#tripDialog").close();$("#cancelTripBtn").onclick=()=>$("#tripDialog").close();
+  $$(".nav").forEach(x=>x.onclick=async()=>{setPage(x.dataset.page);if(x.dataset.page==="admin")await loadAdmin()});$$("[data-page-link]").forEach(x=>x.onclick=()=>setPage(x.dataset.pageLink));
+  $("#refreshAdminBtn").onclick=loadAdmin;
+  document.onclick=e=>{const d=e.target.closest("[data-delete]");if(d)removeTrip(d.dataset.delete);const a=e.target.closest("[data-approve]");if(a)setStatus(a.dataset.approve,"approved");const r=e.target.closest("[data-reject]");if(r)setStatus(r.dataset.reject,"rejected")};
+}
+async function applySession(session){
+  state.session=session;
+  if(!session){state.profile=null;state.group=null;render();return}
+  try{state.profile=await getMyProfile();if(state.profile.status==="approved")await loadGroup();else render()}catch(e){console.error(e);toast(e.message||"Erreur de chargement.","error")}
+}
+async function boot(){
+  bind();const {data:{session}}=await supabase.auth.getSession();await applySession(session);
+  supabase.auth.onAuthStateChange(async(_e,s)=>await applySession(s));
+}
+boot();

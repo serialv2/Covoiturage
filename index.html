@@ -1,264 +1,210 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Covoiturage entre collègues du CP de Maubeuge" />
-  <title>Covoit'CP Maubeuge</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0d2036">
+  <title>Covoit'CP</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="toast" class="toast" hidden></div>
 
   <section id="authView" class="auth-shell">
     <div class="auth-card">
-      <div class="brand brand-auth">
-        <div class="brand-icon">🚗</div>
+      <div class="brand">
+        <div class="brand-logo">🚗</div>
         <div>
           <h1>Covoit'CP</h1>
-          <p>CP de Maubeuge</p>
+          <p>Covoiturage entre collègues</p>
         </div>
       </div>
 
       <div class="tabs">
-        <button class="tab active" data-auth-tab="login">Connexion</button>
-        <button class="tab" data-auth-tab="register">Créer un compte</button>
+        <button class="tab active" data-tab="login">Connexion</button>
+        <button class="tab" data-tab="register">Inscription</button>
       </div>
 
       <form id="loginForm" class="stack">
-        <label>
-          Adresse e-mail
-          <input id="loginEmail" type="email" autocomplete="email" required />
+        <label>Adresse e-mail
+          <input id="loginEmail" type="email" required autocomplete="email">
         </label>
-        <label>
-          Mot de passe
-          <input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required />
+        <label>Mot de passe
+          <input id="loginPassword" type="password" required minlength="6" autocomplete="current-password">
         </label>
-        <button class="btn btn-primary" type="submit">Se connecter</button>
+        <button class="btn primary" type="submit">Se connecter</button>
       </form>
 
       <form id="registerForm" class="stack" hidden>
-        <label>
-          Prénom et nom
-          <input id="registerName" type="text" autocomplete="name" minlength="2" required />
+        <label>Prénom et nom
+          <input id="registerName" type="text" required minlength="2" maxlength="80">
         </label>
-        <label>
-          Adresse e-mail
-          <input id="registerEmail" type="email" autocomplete="email" required />
+        <label>Adresse e-mail
+          <input id="registerEmail" type="email" required autocomplete="email">
         </label>
-        <label>
-          Mot de passe
-          <input id="registerPassword" type="password" autocomplete="new-password" minlength="6" required />
+        <label>Mot de passe
+          <input id="registerPassword" type="password" required minlength="6" autocomplete="new-password">
         </label>
-        <button class="btn btn-primary" type="submit">Créer mon compte</button>
+        <button class="btn primary" type="submit">Créer mon compte</button>
+        <p class="hint">Le compte devra être validé par un administrateur.</p>
       </form>
-
-      <p class="auth-note">
-        Version de départ. Les comptes sont protégés par Supabase Auth.
-      </p>
     </div>
   </section>
 
-  <div id="appView" class="app-shell" hidden>
+  <section id="pendingView" class="auth-shell" hidden>
+    <div class="auth-card center">
+      <div class="big-icon">⏳</div>
+      <h2>Compte en attente</h2>
+      <p>Ton inscription a bien été enregistrée. Un administrateur doit maintenant la valider.</p>
+      <button id="pendingLogoutBtn" class="btn secondary">Se déconnecter</button>
+    </div>
+  </section>
+
+  <div id="appView" class="app" hidden>
     <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-icon">🚗</div>
-        <div>
-          <h1>Covoit'CP</h1>
-          <p>CP de Maubeuge</p>
-        </div>
+      <div class="brand brand-light">
+        <div class="brand-logo">🚗</div>
+        <div><h1>Covoit'CP</h1><p>CP Maubeuge</p></div>
       </div>
 
       <nav>
-        <button class="nav-item active" data-page="dashboard">🏠 Tableau de bord</button>
-        <button class="nav-item" data-page="trips">🗓️ Trajets</button>
-        <button class="nav-item" data-page="accounts">⚖️ Mes comptes</button>
-        <button class="nav-item" data-page="group">👥 Mon groupe</button>
+        <button class="nav active" data-page="dashboard">🏠 Tableau de bord</button>
+        <button class="nav" data-page="trips">🗓️ Trajets</button>
+        <button class="nav" data-page="accounts">⚖️ Mes comptes</button>
+        <button class="nav" data-page="group">👥 Mon groupe</button>
+        <button id="adminNav" class="nav" data-page="admin" hidden>🛡️ Administration</button>
       </nav>
 
-      <div class="sidebar-user">
-        <div class="avatar" id="sidebarAvatar">?</div>
-        <div>
-          <strong id="sidebarName">Utilisateur</strong>
-          <small>Agent</small>
-        </div>
-        <button id="logoutBtn" class="icon-btn" title="Se déconnecter">↪</button>
+      <div class="user-box">
+        <div id="userAvatar" class="avatar">?</div>
+        <div class="grow"><strong id="userName">Utilisateur</strong><small id="userRole">Membre</small></div>
+        <button id="logoutBtn" class="icon-btn">↪</button>
       </div>
     </aside>
 
-    <main class="main">
+    <main>
       <header class="topbar">
         <div>
-          <h2 id="groupTitle">Votre groupe de covoiturage</h2>
-          <p id="groupSubtitle">Créez ou rejoignez un groupe</p>
+          <h2 id="headerTitle">Covoit'CP</h2>
+          <p id="headerSubtitle">Organisation des trajets entre collègues</p>
         </div>
-        <button id="openTripModalBtn" class="btn btn-primary" disabled>＋ Nouveau trajet</button>
+        <button id="newTripBtn" class="btn primary" disabled>＋ Nouveau trajet</button>
       </header>
 
-      <section id="noGroupPanel" class="empty-state">
-        <div class="empty-icon">🛣️</div>
-        <h2>Commencez avec un groupe</h2>
-        <p>Exemple : « Valenciennes → CP Maubeuge », rendez-vous à l’aire de covoiturage de Saultain.</p>
-        <div class="two-columns">
-          <form id="createGroupForm" class="panel stack">
-            <h3>Créer un groupe</h3>
-            <label>
-              Nom du groupe
-              <input id="groupName" value="Valenciennes → CP Maubeuge" required />
-            </label>
-            <label>
-              Point de rendez-vous
-              <input id="meetingPoint" value="Aire de covoiturage de Saultain" required />
-            </label>
-            <button class="btn btn-primary" type="submit">Créer le groupe</button>
-          </form>
-
-          <form id="joinGroupForm" class="panel stack">
-            <h3>Rejoindre un groupe</h3>
-            <label>
-              Code d’invitation
-              <input id="inviteCode" placeholder="Ex. SAULTAIN8" maxlength="12" required />
-            </label>
-            <button class="btn btn-secondary" type="submit">Rejoindre</button>
-          </form>
+      <section id="noGroupView" class="content">
+        <div class="empty">
+          <div class="big-icon">🛣️</div>
+          <h2>Tu n'appartiens à aucun groupe</h2>
+          <p>Crée un groupe ou rejoins-en un avec un code d'invitation.</p>
+          <div class="grid-2">
+            <form id="createGroupForm" class="card stack">
+              <h3>Créer un groupe</h3>
+              <label>Nom
+                <input id="groupName" value="Valenciennes → CP Maubeuge" required>
+              </label>
+              <label>Point de rendez-vous
+                <input id="meetingPoint" value="Aire de covoiturage de Saultain" required>
+              </label>
+              <button class="btn primary">Créer le groupe</button>
+            </form>
+            <form id="joinGroupForm" class="card stack">
+              <h3>Rejoindre un groupe</h3>
+              <label>Code d'invitation
+                <input id="inviteCode" maxlength="12" required placeholder="Ex. A1B2C3D4">
+              </label>
+              <button class="btn secondary">Rejoindre</button>
+            </form>
+          </div>
         </div>
       </section>
 
-      <div id="groupContent" hidden>
-        <section id="dashboardPage" class="page">
-          <div class="stats-grid">
-            <article class="stat-card">
-              <span class="stat-icon">🚘</span>
-              <div><strong id="drivenCount">0</strong><small>Trajets conduits</small></div>
-            </article>
-            <article class="stat-card">
-              <span class="stat-icon">🧑</span>
-              <div><strong id="passengerCount">0</strong><small>Trajets en passager</small></div>
-            </article>
-            <article class="stat-card">
-              <span class="stat-icon">⚖️</span>
-              <div><strong id="balanceCount">0</strong><small>Solde général</small></div>
-            </article>
-            <article class="stat-card">
-              <span class="stat-icon">👥</span>
-              <div><strong id="memberCount">0</strong><small>Membres du groupe</small></div>
-            </article>
-          </div>
+      <section id="dashboardPage" class="page content" hidden>
+        <div class="stats">
+          <article class="stat"><span>🚘</span><div><strong id="statDriven">0</strong><small>Trajets conduits</small></div></article>
+          <article class="stat"><span>🧑</span><div><strong id="statPassenger">0</strong><small>Trajets en passager</small></div></article>
+          <article class="stat"><span>⚖️</span><div><strong id="statBalance">0</strong><small>Solde général</small></div></article>
+          <article class="stat"><span>👥</span><div><strong id="statMembers">0</strong><small>Membres du groupe</small></div></article>
+        </div>
+        <div class="grid-main">
+          <article class="card">
+            <div class="card-head"><h3>Prochains trajets</h3><button class="link" data-page-link="trips">Voir tout</button></div>
+            <div id="upcomingTrips" class="list"></div>
+          </article>
+          <article class="card">
+            <div class="card-head"><h3>Mes comptes</h3><button class="link" data-page-link="accounts">Voir tout</button></div>
+            <div id="accountPreview"></div>
+          </article>
+        </div>
+      </section>
 
-          <div class="dashboard-grid">
-            <article class="panel">
-              <div class="panel-heading">
-                <h3>Prochains trajets</h3>
-                <button class="link-btn" data-page-link="trips">Voir tout</button>
-              </div>
-              <div id="upcomingTrips" class="list"></div>
-            </article>
-
-            <article class="panel">
-              <div class="panel-heading">
-                <h3>Mes comptes avec les collègues</h3>
-                <button class="link-btn" data-page-link="accounts">Voir tout</button>
-              </div>
-              <div id="accountPreview"></div>
-            </article>
+      <section id="tripsPage" class="page content" hidden>
+        <article class="card">
+          <div class="card-head">
+            <div><h3>Historique des trajets</h3><p>Un trajet enregistré correspond à un aller-retour.</p></div>
+            <button class="btn primary" data-open-trip>＋ Ajouter</button>
           </div>
-        </section>
+          <div id="allTrips" class="list"></div>
+        </article>
+      </section>
 
-        <section id="tripsPage" class="page" hidden>
-          <div class="panel">
-            <div class="panel-heading">
-              <div>
-                <h3>Historique des trajets</h3>
-                <p>Un trajet enregistré correspond à un aller-retour.</p>
-              </div>
-              <button class="btn btn-primary" data-open-trip>＋ Ajouter</button>
-            </div>
-            <div id="allTrips" class="list"></div>
+      <section id="accountsPage" class="page content" hidden>
+        <article class="card">
+          <div class="card-head"><div><h3>Mes comptes avec les collègues</h3><p>Le calcul se fait séparément avec chaque personne.</p></div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Collègue</th><th>Je l'ai conduit</th><th>Il/elle m'a conduit</th><th>Situation</th></tr></thead>
+              <tbody id="accountsBody"></tbody>
+            </table>
           </div>
-        </section>
+        </article>
+      </section>
 
-        <section id="accountsPage" class="page" hidden>
-          <div class="panel">
-            <div class="panel-heading">
-              <div>
-                <h3>Mes comptes avec les collègues</h3>
-                <p>Le solde est calculé séparément avec chaque collègue.</p>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Collègue</th>
-                    <th>Je l’ai conduit</th>
-                    <th>Il/elle m’a conduit</th>
-                    <th>Situation</th>
-                  </tr>
-                </thead>
-                <tbody id="accountsTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+      <section id="groupPage" class="page content" hidden>
+        <div class="grid-2">
+          <article class="card">
+            <h3>Informations du groupe</h3>
+            <dl class="details">
+              <div><dt>Nom</dt><dd id="groupInfoName">—</dd></div>
+              <div><dt>Rendez-vous</dt><dd id="groupInfoMeeting">—</dd></div>
+              <div><dt>Code d'invitation</dt><dd><code id="groupInfoCode">—</code></dd></div>
+            </dl>
+          </article>
+          <article class="card">
+            <h3>Membres</h3>
+            <div id="membersList" class="list"></div>
+          </article>
+        </div>
+      </section>
 
-        <section id="groupPage" class="page" hidden>
-          <div class="two-columns">
-            <article class="panel">
-              <h3>Informations du groupe</h3>
-              <dl class="details">
-                <div><dt>Nom</dt><dd id="groupInfoName">—</dd></div>
-                <div><dt>Rendez-vous</dt><dd id="groupInfoMeeting">—</dd></div>
-                <div><dt>Code d’invitation</dt><dd><code id="groupInfoCode">—</code></dd></div>
-              </dl>
-            </article>
-            <article class="panel">
-              <h3>Membres</h3>
-              <div id="membersList" class="member-list"></div>
-            </article>
-          </div>
-        </section>
-      </div>
+      <section id="adminPage" class="page content" hidden>
+        <div class="grid-2">
+          <article class="card">
+            <div class="card-head"><h3>Comptes en attente</h3><button id="refreshAdminBtn" class="link">Actualiser</button></div>
+            <div id="pendingUsers" class="list"></div>
+          </article>
+          <article class="card">
+            <h3>Comptes validés</h3>
+            <div id="approvedUsers" class="list"></div>
+          </article>
+        </div>
+      </section>
     </main>
   </div>
 
-  <dialog id="tripModal">
-    <form id="tripForm" method="dialog" class="modal-card">
-      <div class="modal-heading">
-        <div>
-          <h2>Nouveau trajet</h2>
-          <p>Un trajet = un aller-retour.</p>
-        </div>
-        <button id="closeTripModalBtn" type="button" class="icon-btn">✕</button>
+  <dialog id="tripDialog">
+    <form id="tripForm" class="modal">
+      <div class="card-head">
+        <div><h2>Nouveau trajet</h2><p>Un trajet = un aller-retour.</p></div>
+        <button id="closeTripBtn" type="button" class="icon-btn">✕</button>
       </div>
-
-      <label>
-        Date
-        <input id="tripDate" type="date" required />
-      </label>
-
-      <label>
-        Horaire de départ
-        <input id="tripTime" type="time" required />
-      </label>
-
-      <label>
-        Conducteur
-        <select id="driverSelect" required></select>
-      </label>
-
-      <fieldset>
-        <legend>Passagers</legend>
-        <div id="passengerCheckboxes" class="checkbox-grid"></div>
-      </fieldset>
-
-      <label>
-        Note facultative
-        <input id="tripNote" placeholder="Ex. Poste du matin" maxlength="100" />
-      </label>
-
-      <div class="modal-actions">
-        <button id="cancelTripBtn" type="button" class="btn btn-secondary">Annuler</button>
-        <button type="submit" class="btn btn-primary">Enregistrer le trajet</button>
+      <label>Date<input id="tripDate" type="date" required></label>
+      <label>Heure de départ<input id="tripTime" type="time" required></label>
+      <label>Conducteur<select id="driverSelect" required></select></label>
+      <fieldset><legend>Passagers</legend><div id="passengerChoices" class="checks"></div></fieldset>
+      <label>Note facultative<input id="tripNote" maxlength="100" placeholder="Ex. Poste du matin"></label>
+      <div class="actions">
+        <button id="cancelTripBtn" type="button" class="btn secondary">Annuler</button>
+        <button class="btn primary">Enregistrer</button>
       </div>
     </form>
   </dialog>

@@ -1,57 +1,61 @@
-# Covoit'CP Maubeuge — V1
+# Covoit'CP V2
 
-Première version fonctionnelle d’un site de covoiturage entre collègues.
+Version entièrement reprise pour un nouveau projet Supabase dédié.
 
-## Fonctions incluses
+## Fonctionnement
 
-- Création de compte et connexion par Supabase Auth.
-- Création d’un groupe de covoiturage.
-- Invitation par code.
-- Groupe exemple : Valenciennes → CP Maubeuge.
-- Point de rendez-vous : aire de covoiturage de Saultain.
-- Enregistrement d’un aller-retour avec conducteur et passagers.
-- Historique des trajets.
-- Suppression d’un trajet par son créateur ou son conducteur.
-- Comptes individuels entre collègues :
-  - Baptiste a conduit Fred 3 fois.
-  - Fred a conduit Baptiste 2 fois.
-  - Baptiste a donc 1 trajet d’avance sur Fred.
+- Inscription par e-mail et mot de passe.
+- Pas de message de confirmation.
+- Les nouveaux comptes passent en `pending`.
+- L'administrateur valide ou refuse les comptes depuis le site.
+- Groupes de covoiturage avec code d'invitation.
+- Trajets aller-retour.
+- Conducteur et passagers.
+- Comptes séparés entre chaque paire de collègues.
+- RLS activé.
 
-## Installation
+## Installation Supabase
 
-1. Créez un projet Supabase.
-2. Ouvrez **SQL Editor** dans Supabase.
-3. Exécutez entièrement le fichier `schema.sql`.
-4. Dans **Authentication > Providers**, activez Email.
-5. Le fichier `config.js` contient déjà l’URL du projet Supabase `keeraqtoiwvcybhavkfb`.
-6. Remplacez seulement `COLLEZ_ICI_VOTRE_CLE_PUBLIQUE_SUPABASE` par la clé publique publishable/anon.
-7. Servez le dossier avec un petit serveur HTTP local.
+1. Créer le nouveau projet Supabase.
+2. Dans `Authentication > Providers > Email`, désactiver **Confirm email**.
+3. Ouvrir `SQL Editor`.
+4. Exécuter tout le fichier `schema.sql`.
+5. Aller dans `Project Settings > API`.
+6. Copier :
+   - Project URL
+   - Publishable key
+7. Les coller dans `config.js`.
 
-Exemple avec Python :
+## Premier administrateur
 
-```bash
-python -m http.server 8080
+1. Inscris-toi normalement depuis le site.
+2. Dans Supabase > SQL Editor, exécute :
+
+```sql
+update public.profiles
+set status = 'approved',
+    is_admin = true
+where email = 'TON_ADRESSE_EMAIL';
 ```
 
-Puis ouvrez :
+3. Déconnecte-toi puis reconnecte-toi.
+4. Le menu **Administration** apparaîtra.
 
-```text
-http://localhost:8080
-```
+## GitHub Pages
 
-L’ouverture directe de `index.html` en `file://` peut bloquer les modules JavaScript. Utilisez donc bien un serveur local.
+Place tous les fichiers à la racine du dépôt GitHub :
 
-## Sécurité
+- `index.html`
+- `style.css`
+- `app.js`
+- `config.js`
+- `schema.sql`
+- `README.md`
 
-- Ne mettez jamais la clé `service_role` dans le site.
-- Utilisez uniquement la clé publique publishable/anon.
-- La sécurité repose sur les politiques RLS du fichier SQL.
-- Les utilisateurs ne voient que les groupes auxquels ils appartiennent.
+Puis active :
 
-## Structure
+`Settings > Pages > Deploy from a branch > main > /(root)`
 
-- `index.html` : interface.
-- `style.css` : mise en page responsive.
-- `app.js` : authentification, groupes, trajets et comptes.
-- `schema.sql` : tables, fonctions et politiques RLS.
-- `config.example.js` : modèle de configuration Supabase.
+L'adresse sera normalement :
+
+`https://serialv2.github.io/Covoiturage/`
