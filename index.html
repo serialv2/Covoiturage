@@ -138,12 +138,41 @@
       </section>
 
       <section id="tripsPage" class="page content" hidden>
-        <article class="card">
-          <div class="card-head">
-            <div><h3>Historique des trajets</h3><p>Un trajet enregistré correspond à un aller-retour.</p></div>
-            <button class="btn primary" data-open-trip>＋ Ajouter</button>
+        <article class="card calendar-card">
+          <div class="calendar-toolbar">
+            <div>
+              <h3>Calendrier des covoiturages</h3>
+              <p>Clique sur une journée pour voir les trajets qui te concernent.</p>
+            </div>
+
+            <div class="calendar-actions">
+              <div class="segmented">
+                <button id="myTripsFilter" class="segment active" type="button">Mes covoiturages</button>
+                <button id="groupTripsFilter" class="segment" type="button">Tout le groupe</button>
+              </div>
+              <button class="btn primary" data-open-trip>＋ Ajouter</button>
+            </div>
           </div>
-          <div id="allTrips" class="list"></div>
+
+          <div class="calendar-navigation">
+            <button id="previousMonthBtn" class="calendar-nav-btn" type="button">‹</button>
+            <button id="todayBtn" class="btn secondary" type="button">Aujourd'hui</button>
+            <h2 id="calendarMonthTitle">Mois</h2>
+            <button id="nextMonthBtn" class="calendar-nav-btn" type="button">›</button>
+          </div>
+
+          <div class="calendar-weekdays">
+            <div>Lun.</div><div>Mar.</div><div>Mer.</div><div>Jeu.</div>
+            <div>Ven.</div><div>Sam.</div><div>Dim.</div>
+          </div>
+
+          <div id="calendarGrid" class="calendar-grid"></div>
+
+          <div class="calendar-legend">
+            <span><i class="legend-dot driver-dot"></i> Je conduis</span>
+            <span><i class="legend-dot passenger-dot"></i> Je suis passager</span>
+            <span><i class="legend-dot group-dot"></i> Autre trajet du groupe</span>
+          </div>
         </article>
       </section>
 
@@ -207,6 +236,24 @@
         <button class="btn primary">Enregistrer</button>
       </div>
     </form>
+  </dialog>
+
+
+  <dialog id="dayDetailsDialog">
+    <div class="modal day-details-modal">
+      <div class="card-head">
+        <div>
+          <h2 id="dayDetailsTitle">Trajets du jour</h2>
+          <p id="dayDetailsSubtitle"></p>
+        </div>
+        <button id="closeDayDetailsBtn" type="button" class="icon-btn">✕</button>
+      </div>
+      <div id="dayDetailsList" class="list"></div>
+      <div class="actions">
+        <button id="addTripFromDayBtn" type="button" class="btn primary">＋ Ajouter un trajet ce jour</button>
+        <button id="closeDayDetailsBottomBtn" type="button" class="btn secondary">Fermer</button>
+      </div>
+    </div>
   </dialog>
 
   <script type="module" src="app.js"></script>

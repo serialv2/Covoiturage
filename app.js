@@ -3,7 +3,16 @@ import { SUPABASE_URL, SUPABASE_PUBLIC_KEY } from "./config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
 
-const state = { session:null, profile:null, group:null, members:[], trips:[] };
+const state = {
+  session:null,
+  profile:null,
+  group:null,
+  members:[],
+  trips:[],
+  calendarDate:new Date(),
+  calendarFilter:"mine",
+  selectedCalendarDate:null
+};
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 
@@ -48,7 +57,7 @@ function render(){
   if(!has){$("#headerTitle").textContent="Covoit'CP";$("#headerSubtitle").textContent="Crée ou rejoins un groupe";return}
   $("#dashboardPage").hidden=false;$("#headerTitle").textContent=state.group.name;$("#headerSubtitle").textContent=`Rendez-vous : ${state.group.meeting_point}`;
   $("#groupInfoName").textContent=state.group.name;$("#groupInfoMeeting").textContent=state.group.meeting_point;$("#groupInfoCode").textContent=state.group.invite_code;
-  renderStats();renderTrips();renderAccounts();renderMembers();fillTripForm();
+  renderStats();renderTrips();renderCalendar();renderAccounts();renderMembers();fillTripForm();
 }
 function relations(){
   const me=state.session.user.id,map=new Map();
@@ -74,10 +83,180 @@ function tripHtml(t,del=false){
 }
 function renderTrips(){
   const today=new Date();today.setHours(0,0,0,0);
-  const upcoming=state.trips.filter(t=>new Date(`${t.trip_date}T12:00:00`)>=today).sort((a,b)=>a.trip_date.localeCompare(b.trip_date)||a.departure_time.localeCompare(b.departure_time));
-  $("#upcomingTrips").innerHTML=upcoming.length?upcoming.slice(0,4).map(t=>tripHtml(t)).join(""):`<div class="empty-list">Aucun trajet à venir.</div>`;
-  $("#allTrips").innerHTML=state.trips.length?state.trips.map(t=>tripHtml(t,true)).join(""):`<div class="empty-list">Aucun trajet enregistré.</div>`;
+  const upcoming=state.trips
+    .filter(t=>new Date(`${t.trip_date}T12:00:00`)>=today)
+    .filter(t=>tripRoleForMe(t)!=="group")
+    .sort((a,b)=>a.trip_date.localeCompare(b.trip_date)||a.departure_time.localeCompare(b.departure_time));
+
+  $("#upcomingTrips").innerHTML=upcoming.length
+    ? upcoming.slice(0,4).map(t=>tripHtml(t)).join("")
+    : `<div class="empty-list">Aucun trajet à venir.</div>`;
 }
+
+function startOfDay(date){
+  const value=new Date(date);
+  value.setHours(0,0,0,0);
+  return value;
+}
+
+function dateKey(date){
+  const year=date.getFullYear();
+  const month=String(date.getMonth()+1).padStart(2,"0");
+  const day=String(date.getDate()).padStart(2,"0");
+  return `${year}-${month}-${day}`;
+}
+
+function tripRoleForMe(trip){
+  const me=state.session.user.id;
+  if(trip.driver_id===me)return "driver";
+  if((trip.trip_passengers||[]).some(p=>p.passenger_id===me))return "passenger";
+  return "group";
+}
+
+function filteredCalendarTrips(){
+  if(state.calendarFilter==="group")return state.trips;
+  return state.trips.filter(trip=>tripRoleForMe(trip)!=="group");
+}
+
+function renderCalendar(){
+  const grid=$("#calendarGrid");
+  if(!grid || !state.group)return;
+
+  const current=new Date(state.calendarDate.getFullYear(),state.calendarDate.getMonth(),1);
+  const monthTitle=new Intl.DateTimeFormat("fr-FR",{month:"long",year:"numeric"}).format(current);
+  $("#calendarMonthTitle").textContent=monthTitle;
+
+  $("#myTripsFilter").classList.toggle("active",state.calendarFilter==="mine");
+  $("#groupTripsFilter").classList.toggle("active",state.calendarFilter==="group");
+
+  const mondayIndex=(current.getDay()+6)%7;
+  const gridStart=new Date(current);
+  gridStart.setDate(current.getDate()-mondayIndex);
+
+  const tripsByDay=new Map();
+  filteredCalendarTrips().forEach(trip=>{
+    if(!tripsByDay.has(trip.trip_date))tripsByDay.set(trip.trip_date,[]);
+    tripsByDay.get(trip.trip_date).push(trip);
+  });
+
+  const todayKey=dateKey(new Date());
+  let html="";
+
+  for(let i=0;i<42;i++){
+    const day=new Date(gridStart);
+    day.setDate(gridStart.getDate()+i);
+
+    const key=dateKey(day);
+    const dayTrips=(tripsByDay.get(key)||[])
+      .sort((a,b)=>(a.departure_time||"").localeCompare(b.departure_time||""));
+
+    const otherMonth=day.getMonth()!==current.getMonth();
+    const classes=[
+      "calendar-day",
+      otherMonth?"other-month":"",
+      key===todayKey?"today":"",
+      dayTrips.length?"has-trips":""
+    ].filter(Boolean).join(" ");
+
+    const events=dayTrips.slice(0,3).map(trip=>{
+      const role=tripRoleForMe(trip);
+      let label;
+      if(role==="driver"){
+        const passengerCount=(trip.trip_passengers||[]).length;
+        label=`🚗 Je conduis · ${trip.departure_time.slice(0,5)} · ${passengerCount} pass.`;
+      }else if(role==="passenger"){
+        label=`👤 Avec ${trip.driver?.full_name||"un collègue"} · ${trip.departure_time.slice(0,5)}`;
+      }else{
+        label=`🚘 ${trip.driver?.full_name||"Conducteur"} · ${trip.departure_time.slice(0,5)}`;
+      }
+      return `<div class="calendar-event ${role}">${esc(label)}</div>`;
+    }).join("");
+
+    html+=`
+      <button type="button" class="${classes}" data-calendar-date="${key}" ${dayTrips.length?"":"disabled"}>
+        <div class="calendar-day-number">
+          <span>${day.getDate()}</span>
+          ${dayTrips.length?`<span class="calendar-day-count">${dayTrips.length}</span>`:""}
+        </div>
+        <div class="calendar-events">
+          ${events}
+          ${dayTrips.length>3?`<div class="calendar-more">+ ${dayTrips.length-3} autre${dayTrips.length-3>1?"s":""}</div>`:""}
+        </div>
+      </button>`;
+  }
+
+  grid.innerHTML=html;
+}
+
+function openDayDetails(dayKey){
+  state.selectedCalendarDate=dayKey;
+  const dayTrips=filteredCalendarTrips()
+    .filter(trip=>trip.trip_date===dayKey)
+    .sort((a,b)=>(a.departure_time||"").localeCompare(b.departure_time||""));
+
+  const date=new Date(`${dayKey}T12:00:00`);
+  $("#dayDetailsTitle").textContent=new Intl.DateTimeFormat("fr-FR",{
+    weekday:"long",day:"numeric",month:"long",year:"numeric"
+  }).format(date);
+
+  $("#dayDetailsSubtitle").textContent=
+    state.calendarFilter==="mine"
+      ?"Covoiturages qui te concernent."
+      :"Tous les covoiturages du groupe.";
+
+  $("#dayDetailsList").innerHTML=dayTrips.length
+    ? dayTrips.map(trip=>dayTripDetailsHtml(trip)).join("")
+    : `<div class="empty-list">Aucun covoiturage ce jour.</div>`;
+
+  $("#dayDetailsDialog").showModal();
+}
+
+function dayTripDetailsHtml(trip){
+  const role=tripRoleForMe(trip);
+  const roleText=role==="driver"?"Je conduis":role==="passenger"?"Je suis passager":"Trajet du groupe";
+  const passengers=(trip.trip_passengers||[])
+    .map(p=>p.passenger?.full_name||"Collègue")
+    .join(", ")||"Aucun passager";
+
+  const canDelete=
+    trip.created_by===state.session.user.id ||
+    trip.driver_id===state.session.user.id ||
+    state.profile.is_admin;
+
+  return `
+    <div class="day-trip">
+      <div class="day-trip-head">
+        <strong>${esc(trip.departure_time.slice(0,5))} — Aller-retour</strong>
+        <span class="day-trip-role ${role}">${esc(roleText)}</span>
+      </div>
+      <div class="day-trip-meta">
+        <span><b>Conducteur :</b> ${esc(trip.driver?.full_name||"Collègue")}</span>
+        <span><b>Passagers :</b> ${esc(passengers)}</span>
+        <span><b>Rendez-vous :</b> ${esc(state.group.meeting_point)}</span>
+        ${trip.note?`<span><b>Note :</b> ${esc(trip.note)}</span>`:""}
+      </div>
+      ${canDelete?`<div><button class="danger-btn" data-delete="${trip.id}">Supprimer ce trajet</button></div>`:""}
+    </div>`;
+}
+
+function setCalendarMonth(offset){
+  state.calendarDate=new Date(
+    state.calendarDate.getFullYear(),
+    state.calendarDate.getMonth()+offset,
+    1
+  );
+  renderCalendar();
+}
+
+function openTripForSelectedDay(){
+  $("#dayDetailsDialog").close();
+  openTrip();
+  if(state.selectedCalendarDate){
+    $("#tripDate").value=state.selectedCalendarDate;
+  }
+}
+
+
 function accountRow(r){
   let text="Équilibré",cl="even";if(r.balance>0){text=`Vous avez ${r.balance} trajet${r.balance>1?"s":""} d'avance`;cl="positive"}
   if(r.balance<0){const n=Math.abs(r.balance);text=`${r.name} a ${n} trajet${n>1?"s":""} d'avance`;cl="negative"}
@@ -129,7 +308,30 @@ function bind(){
   $("#newTripBtn").onclick=openTrip;$$("[data-open-trip]").forEach(x=>x.onclick=openTrip);$("#closeTripBtn").onclick=()=>$("#tripDialog").close();$("#cancelTripBtn").onclick=()=>$("#tripDialog").close();
   $$(".nav").forEach(x=>x.onclick=async()=>{setPage(x.dataset.page);if(x.dataset.page==="admin")await loadAdmin()});$$("[data-page-link]").forEach(x=>x.onclick=()=>setPage(x.dataset.pageLink));
   $("#refreshAdminBtn").onclick=loadAdmin;
-  document.onclick=e=>{const d=e.target.closest("[data-delete]");if(d)removeTrip(d.dataset.delete);const a=e.target.closest("[data-approve]");if(a)setStatus(a.dataset.approve,"approved");const r=e.target.closest("[data-reject]");if(r)setStatus(r.dataset.reject,"rejected")};
+  $("#previousMonthBtn").onclick=()=>setCalendarMonth(-1);
+  $("#nextMonthBtn").onclick=()=>setCalendarMonth(1);
+  $("#todayBtn").onclick=()=>{state.calendarDate=new Date();renderCalendar()};
+  $("#myTripsFilter").onclick=()=>{state.calendarFilter="mine";renderCalendar()};
+  $("#groupTripsFilter").onclick=()=>{state.calendarFilter="group";renderCalendar()};
+  $("#closeDayDetailsBtn").onclick=()=>$("#dayDetailsDialog").close();
+  $("#closeDayDetailsBottomBtn").onclick=()=>$("#dayDetailsDialog").close();
+  $("#addTripFromDayBtn").onclick=openTripForSelectedDay;
+  document.onclick=e=>{
+    const calendarDay=e.target.closest("[data-calendar-date]");
+    if(calendarDay && !calendarDay.disabled)openDayDetails(calendarDay.dataset.calendarDate);
+
+    const d=e.target.closest("[data-delete]");
+    if(d){
+      removeTrip(d.dataset.delete);
+      if($("#dayDetailsDialog")?.open)$("#dayDetailsDialog").close();
+    }
+
+    const a=e.target.closest("[data-approve]");
+    if(a)setStatus(a.dataset.approve,"approved");
+
+    const r=e.target.closest("[data-reject]");
+    if(r)setStatus(r.dataset.reject,"rejected");
+  };
 }
 async function applySession(session){
   state.session=session;

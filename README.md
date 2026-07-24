@@ -86,3 +86,20 @@ Puis :
 `Settings > Pages > Deploy from a branch > main > /(root)`
 
 Recharge ensuite le site avec `Ctrl + F5`.
+
+
+## Nouveauté V4 — Calendrier mensuel
+
+La page **Trajets** contient maintenant :
+
+- un calendrier mensuel ;
+- une navigation mois précédent / suivant ;
+- un bouton Aujourd'hui ;
+- un filtre Mes covoiturages / Tout le groupe ;
+- une couleur verte lorsque l'utilisateur conduit ;
+- une couleur bleue lorsqu'il est passager ;
+- une couleur violette pour les autres trajets du groupe ;
+- une fenêtre de détail au clic sur une journée ;
+- la création d'un trajet directement depuis la journée sélectionnée.
+
+Aucune modification SQL supplémentaire n'est nécessaire pour cette version.
