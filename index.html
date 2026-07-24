@@ -5,19 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0d2036">
   <title>Covoit'CP</title>
-  <link rel="stylesheet" href="css/style.css?v=5.0.0">
+  <link rel="stylesheet" href="css/style.css?v=6.0.0">
 </head>
 <body>
   <div id="toast" class="toast" hidden></div>
 
   <section id="authView" class="auth-shell">
     <div class="auth-card">
-      <div class="brand">
-        <div class="brand-logo">🚗</div>
-        <div>
-          <h1>Covoit'CP</h1>
-          <p>Covoiturage entre collègues</p>
-        </div>
+      <div class="auth-hero">
+        <div class="brand-logo auth-logo">🚗</div>
+        <p class="eyebrow">CP MAUBEUGE</p>
+        <h1>Covoit'CP</h1>
+        <p>Organise simplement tes trajets avec les collègues.</p>
       </div>
 
       <div class="tabs">
@@ -68,11 +67,11 @@
       </div>
 
       <nav>
-        <button class="nav active" data-page="dashboard">🏠 Tableau de bord</button>
-        <button class="nav" data-page="trips">🗓️ Trajets</button>
-        <button class="nav" data-page="accounts">⚖️ Mes comptes</button>
-        <button class="nav" data-page="group">👥 Mon groupe</button>
-        <button id="adminNav" class="nav" data-page="admin" hidden>🛡️ Administration</button>
+        <button class="nav active" data-page="dashboard"><span class="nav-icon">🏠</span><span class="nav-label">Accueil</span></button>
+        <button class="nav" data-page="trips"><span class="nav-icon">🗓️</span><span class="nav-label">Calendrier</span></button>
+        <button class="nav" data-page="accounts"><span class="nav-icon">⚖️</span><span class="nav-label">Comptes</span></button>
+        <button class="nav" data-page="group"><span class="nav-icon">👥</span><span class="nav-label">Groupe</span></button>
+        <button id="adminNav" class="nav" data-page="admin" hidden><span class="nav-icon">🛡️</span><span class="nav-label">Admin</span></button>
       </nav>
 
       <div class="user-box">
@@ -84,11 +83,12 @@
 
     <main>
       <header class="topbar">
-        <div>
+        <div class="mobile-brand mobile-only">🚗</div>
+        <div class="topbar-copy">
           <h2 id="headerTitle">Covoit'CP</h2>
           <p id="headerSubtitle">Organisation des trajets entre collègues</p>
         </div>
-        <button id="newTripBtn" class="btn primary" disabled>＋ Nouveau trajet</button>
+        <button id="newTripBtn" class="btn primary new-trip-button" disabled><span class="desktop-only">＋ Nouveau trajet</span><span class="mobile-only">＋</span></button>
       </header>
 
       <section id="noGroupView" class="content">
@@ -229,7 +229,7 @@
       <label>Date<input id="tripDate" type="date" required></label>
       <label>Heure de départ<input id="tripTime" type="time" required></label>
       <label>Conducteur<select id="driverSelect" required></select></label>
-      <fieldset><legend>Passagers</legend><div id="passengerChoices" class="checks"></div></fieldset>
+      <fieldset><legend>Passagers <small>(facultatif)</small></legend><div id="passengerChoices" class="checks"></div></fieldset>
       <label>Note facultative<input id="tripNote" maxlength="100" placeholder="Ex. Poste du matin"></label>
       <div class="actions">
         <button id="cancelTripBtn" type="button" class="btn secondary">Annuler</button>
@@ -256,6 +256,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="js/main.js?v=5.0.0"></script>
+  <script type="module" src="js/main.js?v=6.0.0"></script>
 </body>
 </html>

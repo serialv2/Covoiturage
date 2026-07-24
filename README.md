@@ -1,53 +1,35 @@
-# Covoit'CP V5 — Architecture modulaire
+# Covoit'CP V6 — Mobile First
 
-Cette version reprend le projet dans une structure plus claire et plus facile à maintenir.
+Cette version conserve l'architecture modulaire de la V5 et refond entièrement
+l'interface pour un usage prioritaire sur téléphone.
+
+## Nouveautés
+
+- page de connexion moderne ;
+- navigation fixe en bas de l'écran sur téléphone ;
+- bouton flottant pour créer un trajet ;
+- calendrier mensuel compact sur mobile ;
+- détails et formulaires affichés comme des panneaux mobiles ;
+- gros champs et boutons tactiles ;
+- interface ordinateur conservée ;
+- création de trajet sans passager toujours autorisée.
 
 ## Structure
 
 - `index.html`
 - `config.js`
 - `css/style.css`
-- `js/main.js`
-- `js/state.js`
-- `js/supabase.js`
-- `js/utils.js`
-- `js/data.js`
-- `js/auth.js`
-- `js/groups.js`
-- `js/trips.js`
-- `js/calendar.js`
-- `js/accounts.js`
-- `js/admin.js`
-- `js/ui.js`
+- `js/*.js`
 - `sql/schema.sql`
 
-## Corrections incluses
+## Mise à jour GitHub
 
-- calendrier mensuel ;
-- chargement forcé des fichiers avec `?v=5.0.0` ;
-- création d'un trajet sans passager ;
-- séparation du code par fonctionnalité ;
-- conservation de l'authentification, des groupes, des comptes et de l'administration.
+Pour éviter de perdre tes identifiants Supabase :
 
-## Mise en ligne sur GitHub Pages
+1. conserve ton `config.js` actuel ;
+2. remplace `index.html` ;
+3. remplace les dossiers `css` et `js` ;
+4. le dossier `sql` n'a pas besoin d'être exécuté à nouveau si la base fonctionne déjà.
 
-Remplace le contenu du dépôt GitHub par les fichiers et dossiers de cette archive.
-
-La racine du dépôt doit contenir :
-
-- `index.html`
-- `config.js`
-- `README.md`
-- dossier `css`
-- dossier `js`
-- dossier `sql`
-
-Il ne faut plus conserver l'ancien `app.js` ni l'ancien `style.css` à la racine.
-
-Le fichier `config.js` doit conserver les véritables informations de ton projet Supabase.
-
-## Important pour Supabase
-
-Si la fonction Supabase autorisant un trajet sans passager n'est pas encore installée,
-exécute le correctif SQL déjà fourni précédemment ou utilise la version à jour de `sql/schema.sql`
-pour une nouvelle installation.
+Le fichier `index.html` charge `style.css?v=6.0.0` et `main.js?v=6.0.0`
+pour contourner le cache GitHub Pages et Chrome.
